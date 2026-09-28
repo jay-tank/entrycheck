@@ -1,0 +1,219 @@
+{
+  "name": "entrycheck",
+  "displayName": "EntryCheck: Fix exec format error in Docker & CI Scripts",
+  "description": "Catch \"exec format error\", \"no such file or directory\" and \"permission denied\" before the container or CI run: flags CRLF line endings, missing shebangs, UTF-8 BOMs and non-executable git modes in scripts used by Dockerfile ENTRYPOINT/CMD/RUN, docker-compose, GitHub Actions, GitLab CI, package.json and Husky hooks.",
+  "version": "0.1.0",
+  "publisher": "jaytankdev",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "exec format error",
+    "entrypoint",
+    "crlf",
+    "line endings",
+    "shebang",
+    "docker",
+    "dockerfile",
+    "docker-compose",
+    "chmod",
+    "permission denied",
+    "no such file or directory",
+    "github actions",
+    "gitlab ci",
+    "husky",
+    "gitattributes",
+    "bom"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/Dockerfile",
+    "workspaceContains:.github/workflows",
+    "onStartupFinished",
+    "onView:entrycheck.scripts"
+  ],
+  "main": "./extension.js",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#1E2410",
+    "theme": "dark"
+  },
+  "license": "MIT",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "EntryCheck reads git's index (git ls-files) for the executable-bit check (EC004), which only runs in trusted workspaces. The line-ending, shebang and BOM checks are static file reads and work everywhere."
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "entrycheck.rescan",
+        "title": "EntryCheck: Rescan Workspace",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "entrycheck.fixCrlf",
+        "title": "Convert to LF line endings",
+        "category": "EntryCheck",
+        "icon": "$(whitespace)"
+      },
+      {
+        "command": "entrycheck.stripBom",
+        "title": "Strip UTF-8 BOM",
+        "category": "EntryCheck",
+        "icon": "$(remove)"
+      },
+      {
+        "command": "entrycheck.addGitattributes",
+        "title": "Add *.sh text eol=lf to .gitattributes",
+        "category": "EntryCheck",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "entrycheck.openScript",
+        "title": "Open script",
+        "category": "EntryCheck",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "entrycheck.openFinding",
+        "title": "Open launching line",
+        "category": "EntryCheck"
+      }
+    ],
+    "configuration": {
+      "title": "EntryCheck",
+      "properties": {
+        "entrycheck.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check the scripts that Dockerfiles, compose files, CI workflows, package.json scripts and Husky hooks execute."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "entrycheck",
+          "title": "EntryCheck",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "entrycheck": [
+        {
+          "id": "entrycheck.scripts",
+          "name": "Failing scripts",
+          "icon": "media/activity.svg",
+          "contextualTitle": "EntryCheck"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "entrycheck.scripts",
+        "contents": "EntryCheck is turned off.\n[Open EntryCheck Settings](command:workbench.action.openSettings?%5B%22entrycheck.%22%5D)",
+        "when": "!config.entrycheck.enabled"
+      },
+      {
+        "view": "entrycheck.scripts",
+        "contents": "EntryCheck is scanning the workspace...",
+        "when": "config.entrycheck.enabled && !entrycheck.scanned"
+      },
+      {
+        "view": "entrycheck.scripts",
+        "contents": "No Dockerfile, compose file, GitHub Actions or GitLab CI workflow, package.json or Husky hook found.\nEntryCheck follows those files to the scripts they run and checks each script for CRLF line endings, a missing shebang, a UTF-8 BOM and a missing executable bit.\n[Rescan Workspace](command:entrycheck.rescan)",
+        "when": "config.entrycheck.enabled && entrycheck.scanned && !entrycheck.hasLaunchers"
+      },
+      {
+        "view": "entrycheck.scripts",
+        "contents": "No failing scripts.\nEvery script your Dockerfiles, compose files, CI workflows, package.json scripts and Husky hooks run has LF line endings, a valid shebang, no BOM and the executable bit where it needs one.\n[Rescan Workspace](command:entrycheck.rescan)",
+        "when": "config.entrycheck.enabled && entrycheck.scanned && entrycheck.hasLaunchers && isWorkspaceTrusted"
+      },
+      {
+        "view": "entrycheck.scripts",
+        "contents": "No failing scripts found so far.\nIn Restricted Mode EntryCheck checks line endings, shebangs and BOMs. The executable-bit check (EC004) reads git and runs once you trust this workspace.\n[Rescan Workspace](command:entrycheck.rescan)\n[Manage Workspace Trust](command:workbench.trust.manage)",
+        "when": "config.entrycheck.enabled && entrycheck.scanned && entrycheck.hasLaunchers && !isWorkspaceTrusted"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "entrycheck.rescan",
+          "when": "view == entrycheck.scripts",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "entrycheck.fixCrlf",
+          "when": "view == entrycheck.scripts && viewItem == finding.EC001",
+          "group": "inline@1"
+        },
+        {
+          "command": "entrycheck.stripBom",
+          "when": "view == entrycheck.scripts && viewItem == finding.EC003",
+          "group": "inline@1"
+        },
+        {
+          "command": "entrycheck.addGitattributes",
+          "when": "view == entrycheck.scripts && viewItem =~ /^finding\\.(EC001|EC005)$/",
+          "group": "inline@2"
+        },
+        {
+          "command": "entrycheck.openScript",
+          "when": "view == entrycheck.scripts && viewItem =~ /^finding\\.EC00[1-4]$/",
+          "group": "inline@3"
+        },
+        {
+          "command": "entrycheck.fixCrlf",
+          "when": "view == entrycheck.scripts && viewItem == finding.EC001",
+          "group": "1_fix@1"
+        },
+        {
+          "command": "entrycheck.stripBom",
+          "when": "view == entrycheck.scripts && viewItem == finding.EC003",
+          "group": "1_fix@1"
+        },
+        {
+          "command": "entrycheck.addGitattributes",
+          "when": "view == entrycheck.scripts && viewItem =~ /^finding\\.(EC001|EC005)$/",
+          "group": "1_fix@2"
+        },
+        {
+          "command": "entrycheck.openScript",
+          "when": "view == entrycheck.scripts && viewItem =~ /^finding\\.EC00[1-4]$/",
+          "group": "2_open@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "entrycheck.fixCrlf",
+          "when": "false"
+        },
+        {
+          "command": "entrycheck.stripBom",
+          "when": "false"
+        },
+        {
+          "command": "entrycheck.addGitattributes",
+          "when": "false"
+        },
+        {
+          "command": "entrycheck.openScript",
+          "when": "false"
+        },
+        {
+          "command": "entrycheck.openFinding",
+          "when": "false"
+        }
+      ]
+    }
+  }
+}
