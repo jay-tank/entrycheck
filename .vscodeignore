@@ -1,0 +1,7 @@
+.vscode/**
+.gitignore
+generate_icon.py
+*.vsix
+.git/**
+test/**
+node_modules/**
